@@ -1,0 +1,12 @@
+.markerbg {
+  position: absolute;
+  width: 100px;
+  border: 1px #000 solid;
+  display: none;  
+}
+.markerbg h3{
+  text-align:center;
+}
+.markerbg p{
+  padding-left:6px;
+}

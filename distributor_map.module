@@ -1,0 +1,426 @@
+<?php
+
+/**
+ * @file
+ * Module implementation file
+ */
+
+/**
+ * This module provides a simple way to create content
+ *  with map pointer.
+ * This module also provides a block to
+ *  view each content in map location.
+ */
+
+/**
+ * DISTRIBUTOR_MAP_IMG_MAP - Upload your map image in project directory
+ *               and asign the image name
+ * DISTRIBUTOR_MAP_IMG_MARKER - Upload your marker image in project
+ *                   directory and asign the image name
+ * DISTRIBUTOR_MAP_WIDTH - Set the width for map image
+ * DISTRIBUTOR_MAP_HEIGHT - Set the height for map image
+ * DISTRIBUTOR_MAP_MARKER_WIDTH - Set the width for marker image
+ * DISTRIBUTOR_MAP_MARKER_HEIGHT - Set the height for marker image
+ */
+
+global $base_path;
+$dis_root_path = $base_path . drupal_get_path('module', 'distributor_map');
+define('DISTRIBUTOR_MAP_IMG_MAP', variable_get('distributor_map_image_path') == '' ? $dis_root_path . '/images/map.png' : variable_get('distributor_map_image_path'));
+define('DISTRIBUTOR_MAP_IMG_MARKER', variable_get('distributor_map_marker_path') == '' ? $dis_root_path . '/images/marker.png' : variable_get('distributor_map_marker_path'));
+define('DISTRIBUTOR_MAP_WIDTH', variable_get('distributor_map_image_width') == '' ? '400' : variable_get('distributor_map_image_width'));
+define('DISTRIBUTOR_MAP_HEIGHT', variable_get('distributor_map_image_height') == '' ? '301' : variable_get('distributor_map_image_height'));
+define('DISTRIBUTOR_MAP_MARKER_WIDTH', variable_get('distributor_map_marker_width') == '' ? '20' : variable_get('distributor_map_marker_width'));
+define('DISTRIBUTOR_MAP_MARKER_HEIGHT', variable_get('distributor_map_marker_height') == '' ? '34' : variable_get('distributor_map_marker_height'));
+
+/**
+ * Implements hook_menu().
+ */
+function distributor_map_menu() {
+  $items = array();
+  $items['admin/config/distributormap'] = array(
+    'title' => 'Distributor Map',
+    'description' => 'Add map to content type',
+    'weight' => -100,
+    'page callback' => 'system_admin_menu_block_page',
+    'access arguments' => array('create distributor map'),
+    'file' => 'system.admin.inc',
+    'file path' => drupal_get_path('module', 'system'),
+  );
+  $items['admin/config/distributormap/map'] = array(
+    'title' => 'Add Map To Content Type',
+    'description' => 'Add map to content type',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('distributor_map_form'),
+    'access arguments' => array('create distributor map'),
+  );
+  $items['admin/config/distributormap/confirm'] = array(
+    'title' => 'Delete Distributor content',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('distributor_map_confirm'),
+    'access arguments' => array('create distributor map'),
+  );
+  return $items;
+}
+
+/**
+ * Implements hook_form().
+ */
+function distributor_map_form($form, &$form_state) {
+  $options = node_type_get_names();
+  // Check whether the map fields are added in any content type or not.
+  $ctype = variable_get('distributor_map_ctype') != '' ? variable_get('distributor_map_ctype') : '';
+  $form['dis_map_type'] = array(
+    '#type' => 'select',
+    '#options' => $options,
+    '#title' => t('Content Type'),
+    '#default_value' => variable_get('distributor_map_ctype', ''),
+    '#required' => TRUE,
+    '#empty_value' => '',
+    '#empty_option' => '- None -',
+    '#disabled' => variable_get('distributor_map_ctype') != '' ? TRUE : FALSE,
+  ); 
+  $form['dis_map_fieldset1'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Map Image Settings'),
+    '#collapsible' => TRUE, // Added
+    '#collapsed' => FALSE,  // Added
+  );   
+  $form['dis_map_fieldset1']['dis_map_marker'] = array(
+    '#type' => 'managed_file',
+    '#title' => 'Image for Marker',
+    '#upload_location' => 'public://distributor-map/',  
+    '#default_value' => variable_get('distributor_map_marker_ID', ''),
+    '#upload_validators' => array(
+    'file_validate_extensions' => array('png jpg jpeg'),
+    // Pass the maximum file size in bytes
+    'file_validate_size' => array(1024*5),
+    ),
+  );
+  $form['dis_map_fieldset1']['dis_map_marker_width'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Marker Width'),
+    '#description' => 'Please enter the width of the uploaded marker image.(Example: 20)',
+    '#default_value' => variable_get('distributor_map_marker_width'),
+    '#element_validate' => array('dis_element_validate_integer_positive1'), 
+  );
+  $form['dis_map_fieldset1']['dis_map_marker_height'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Marker Height'),
+    '#description' => 'Please enter the height of the uploaded marker image.(Example: 30)',
+    '#default_value' => variable_get('distributor_map_marker_height'),
+    '#element_validate' => array('dis_element_validate_integer_positive1'),
+  ); 
+  $form['dis_map_fieldset2'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Map Image Settings'),
+    '#collapsible' => TRUE, // Added
+    '#collapsed' => FALSE,  // Added
+  );
+  $form['dis_map_fieldset2']['dis_map_image'] = array(
+    '#type' => 'managed_file',
+    '#title' => 'Image for Map',
+    '#upload_location' => 'public://distributor-map/',    
+    '#default_value' => variable_get('distributor_map_image_ID', ''),
+    '#upload_validators' => array(
+    'file_validate_extensions' => array('png jpg jpeg'),
+    // Pass the maximum file size in bytes
+    'file_validate_size' => array(1024*5),
+    ),
+  );
+  $form['dis_map_fieldset2']['dis_map_image_width'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Image Width'),
+    '#description' => 'Please enter the width of the uploaded image.(Example: 400)',
+    '#default_value' => variable_get('distributor_map_image_width'),
+    '#element_validate' => array('dis_element_validate_integer_positive2'),
+  );
+  $form['dis_map_fieldset2']['dis_map_image_height'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Image Height'),
+    '#description' => 'Please enter the height of the uploaded image.(Example: 400)',
+    '#default_value' => variable_get('distributor_map_image_height'),
+    '#element_validate' => array('dis_element_validate_integer_positive2'),
+  );  
+  if (isset($ctype) && !empty($ctype)) {
+    $form['dis_delete'] = array(
+      '#type' => 'markup',
+      '#markup' => "<div><p>" . l(t('Delete'), "admin/config/distributormap/confirm"),
+    );
+  }
+  $form['#attributes']['enctype'] = "multipart/form-data";
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => 'Continue',
+  );  
+  return $form;
+}
+
+/**
+ * Helper function to validate positive integer for marker image text field. 
+ */
+function dis_element_validate_integer_positive1($element, &$form_state) {
+  $value = $element ['#value'];
+  if ($value !== '' && (!is_numeric($value) || intval($value) != $value || $value <= 0)) {
+    form_error($element, t('%name must be a positive integer.', array('%name' => $element ['#title'])));
+  }
+  if ($value > 200) {
+    form_error($element, t('%name must be less than 200px.', array('%name' => $element ['#title'])));
+  }
+}
+
+/**
+ * Helper function to validate positive integer for map image text field. 
+ */
+function dis_element_validate_integer_positive2($element, &$form_state) {
+  $value = $element ['#value'];
+  if ($value !== '' && (!is_numeric($value) || intval($value) != $value || $value <= 0)) {
+    form_error($element, t('%name must be a positive integer.', array('%name' => $element ['#title'])));
+  }  
+}
+
+/**
+ * Implements hook_form_validate(). 
+ */
+function distributor_map_form_validate($form, &$form_state) {
+  variable_set('distributor_map_image_width', $form_state['values']['dis_map_image_width']);
+  variable_set('distributor_map_image_height', $form_state['values']['dis_map_image_height']); 
+  variable_set('distributor_map_marker_width', $form_state['values']['dis_map_marker_width']);
+  variable_set('distributor_map_marker_height', $form_state['values']['dis_map_marker_height']);  
+}
+/**
+ * Implements hook_form_submit().
+ */
+function distributor_map_form_submit($form, &$form_state) {
+  if ($form_state['values']['dis_map_marker'] != '') {
+    $file = file_load($form_state['values']['dis_map_marker']);
+    $path = file_create_url($file->uri);
+    variable_set('distributor_map_marker_path', $path);
+    variable_set('distributor_map_marker_ID', $form_state['values']['dis_map_marker']);
+  }
+  else {
+    variable_set('distributor_map_marker_path', '');
+    variable_set('distributor_map_marker_ID', '');
+  }
+  if ($form_state['values']['dis_map_image'] != '') {
+    $file = file_load($form_state['values']['dis_map_image']);
+    $path = file_create_url($file->uri);
+    variable_set('distributor_map_image_path', $path);
+    variable_set('distributor_map_image_ID', $form_state['values']['dis_map_image']);
+  }
+  else {
+    variable_set('distributor_map_image_path', '');
+    variable_set('distributor_map_image_ID', '');
+  }
+  if (variable_get('distributor_map_ctype') == '') {
+    // Set the map fields into selected content type.
+    variable_set('distributor_map_ctype', $form_state['values']['dis_map_type']);
+    if (!field_info_field('field_dis_xy')) {
+      // Create the field base to refer the x and y points.
+      $field = array(
+        'field_name' => 'field_dis_xy',
+        'type' => 'text',
+      );
+      field_create_field($field);
+      // Create the field instance on the bundle.
+      $instance = array(
+        'field_name' => 'field_dis_xy',
+        'entity_type' => 'node',
+        'label' => t('Distributor Map Pointer'),
+        'bundle' => $form_state['values']['dis_map_type'],
+        'required' => TRUE,
+        'widget' => array(
+          'type' => 'textfield',
+        ),
+      );
+      field_create_instance($instance);
+    }
+    if (!field_info_field('field_dis_text')) {
+      // Create the field base to refer the details
+      // of distributor such that address.
+      $field = array(
+        'field_name' => 'field_dis_text',
+        'type' => 'text_long',
+      );
+      field_create_field($field);
+      // Create the field instance on the bundle.
+      $instance = array(
+        'field_name' => 'field_dis_text',
+        'entity_type' => 'node',
+        'label' => t('Distributor Map Description'),
+        'bundle' => $form_state['values']['dis_map_type'],
+        'required' => TRUE,
+        'widget' => array(
+          'type' => 'text_textarea',
+        ),
+      );
+      field_create_instance($instance);
+    }
+    drupal_set_message(t('Distributor map settings added successfully!'));
+  }
+  else {
+    drupal_set_message(t('Distributor map settings updated successfully!'));
+  }
+  
+}
+/**
+ * Implements hook_form_alter().
+ */
+function distributor_map_form_alter(&$form, &$form_state, $form_id) {
+  global $base_path;
+  $frm_id = variable_get('distributor_map_ctype');
+  // Alter the form to display the map
+  // and marker image into seleted content type.
+  if ($frm_id != '' && ("{$frm_id}_node_form" == $form_id)) {
+    $js_path = drupal_get_path('module', 'distributor_map') . '/js/distributor_map.js';
+    drupal_add_js($js_path, 'file');
+    $imgpath = DISTRIBUTOR_MAP_IMG_MARKER;
+    $map_img = DISTRIBUTOR_MAP_IMG_MAP;
+    drupal_add_css('.mappoint{ display:block;width:' . DISTRIBUTOR_MAP_MARKER_WIDTH . 'px; height:' . DISTRIBUTOR_MAP_MARKER_HEIGHT . 'px; position:absolute;}
+      #dismap {display: block;cursor:pointer;width:' . DISTRIBUTOR_MAP_WIDTH . 'px;height:' . DISTRIBUTOR_MAP_HEIGHT . 'px;z-index:-1; background:url(' . $map_img . ') 0 0 no-repeat  }',
+      array(
+        'type' => 'inline',
+      )
+    );
+    $left = 10;
+    $top = 10;
+    $adjustx = DISTRIBUTOR_MAP_MARKER_WIDTH / 2;
+    $adjusty = DISTRIBUTOR_MAP_MARKER_HEIGHT;
+    $coordinates = $left . ',' . $top;
+    $field_dis_xy = field_get_items('node', $form['#node'], 'field_dis_xy');
+    if (isset($field_dis_xy[0]['value'])) {
+      $coordinates = $field_dis_xy[0]['value'];
+      $arr_point = explode(',', $coordinates);
+      $left = $arr_point[0];
+      $top = $arr_point[1];
+    }
+    else {
+      $form['field_dis_xy'][LANGUAGE_NONE][0]['value']['#default_value'] = '10,10';
+    }
+    $form['imagemap'] = array(
+      '#type' => 'markup',
+      '#markup' => '<span style="font-size:12px;font-weight:bold;">Distributor Map</span><div id="dismap"><img src="' . $imgpath . '" class="mappoint" style="margin-left:' . ($left - $adjustx) . 'px;margin-top:' . ($top - $adjusty) . 'px;" /></div>',
+    );
+    $form['#validate'][] = 'distributor_map_validate';
+  }
+}
+
+/**
+ * Helper function to validate.
+ */
+function distributor_map_validate($form, &$form_state) {
+  global $base_path;
+  $js_path = drupal_get_path('module', 'distributor_map') . '/js/distributor_map.js';
+  drupal_add_js($js_path, 'file');
+  $map_img = DISTRIBUTOR_MAP_IMG_MAP;
+  drupal_add_css('.mappoint{ display:block;width:' . DISTRIBUTOR_MAP_MARKER_WIDTH . '; height:' . DISTRIBUTOR_MAP_MARKER_HEIGHT . '; position:absolute;}
+    #dismap {display: block;cursor:pointer;width:' . DISTRIBUTOR_MAP_WIDTH . ';height:' . DISTRIBUTOR_MAP_HEIGHT . ';z-index:-1; background:url(' . $map_img . ') 0 0 no-repeat  }',
+    array(
+      'type' => 'inline',
+    )
+  );
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function distributor_map_block_info() {
+  // Create the block name as Distributor Map
+  // to display the content in map view.
+  $block = array();
+  $block['distributor_map'] = array(
+    'info' => t('Distributor Map'),
+    'cache' => DRUPAL_NO_CACHE,
+  );
+  return $block;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function distributor_map_block_view($block_name = '') {
+  $block = array();
+  if ($block_name == 'distributor_map') {
+    global $base_path;
+    $block['subject'] = '';
+    $items = array();
+    $items['distributor_map_image_path'] = DISTRIBUTOR_MAP_IMG_MAP;
+    $items['distributor_map_image_width'] = DISTRIBUTOR_MAP_WIDTH;
+    $items['distributor_map_image_height'] = DISTRIBUTOR_MAP_HEIGHT;
+    $items['distributor_map_marker_path'] = DISTRIBUTOR_MAP_IMG_MARKER;
+    $items['distributor_map_marker_width'] = DISTRIBUTOR_MAP_MARKER_WIDTH;
+    $items['distributor_map_marker_height'] = DISTRIBUTOR_MAP_MARKER_HEIGHT; 
+    $block['content'] = theme('distributor_map_custom_block', array('items' => $items)); 
+  }
+  return $block;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function distributor_map_theme() {
+   return array(
+    'distributor_map_custom_block' => array(
+      'template' => 'distributor_map_custom_block',
+      'variables' => array('items' => NULL),
+    ),   
+  ); 
+}
+
+/**
+ * Helper function to confirmation for remove the map fields.
+ */
+function distributor_map_confirm() {
+  $form['dis_confirm'] = array(
+    '#type' => 'markup',
+    '#markup' => t("<p>Are you sure want to delete? It will delete the map fields attached in the selected content type.</p>"),
+  );
+  $form['delete_button'] = array(
+    '#type' => 'submit',
+    '#value' => t('Delete'),
+    '#submit' => array('distributor_map_delete'),
+  );
+  $form['cancle_button'] = array(
+    '#type' => 'submit',
+    '#value' => t('Cancle'),
+    '#submit' => array('distributor_map_cancle'),
+  );
+  return $form;
+}
+
+/**
+ * Helper function to remove the map fields from the content type.
+ */
+function distributor_map_delete() {
+  field_delete_field('field_dis_xy');
+  field_delete_field('field_dis_text');
+  drupal_set_message(t('Map fields was deleted from ' . variable_get('distributor_map_ctype') . ' content type'));
+  variable_del('distributor_map_ctype');
+  variable_del('distributor_map_image_width');
+  variable_del('distributor_map_image_height');
+  variable_del('distributor_map_image_path');
+  variable_del('distributor_map_marker_path');
+  variable_del('distributor_map_marker_width'); 
+  variable_del('distributor_map_marker_height');  
+  variable_del('distributor_map_marker_ID');
+  variable_get('distributor_map_image_ID'); 
+  drupal_goto('admin/config/distributormap/map');
+}
+
+/**
+ * Helper function to cancle the operation from remove the map fields. 
+ */
+function distributor_map_cancle() {
+  drupal_goto('admin/config/distributormap/map');
+}
+
+/**
+ * Implements hook_permission().
+ */
+function distributor_map_permission() {
+  return array(
+    'create distributor map' => array(
+      'title' => t('Create Distributor Map'),
+      'description' => t('Allow admin to create distributor map'),
+    ),
+  );
+}

@@ -1,0 +1,5 @@
+name= Distributor Map
+description= Enables the creation of map for each content(distributors) so that describes that where the distributor belongs to
+core= 7.x
+package = distributor_map
+configure = admin/config/distributormap

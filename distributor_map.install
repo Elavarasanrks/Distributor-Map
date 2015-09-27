@@ -1,0 +1,22 @@
+<?php
+
+/**
+ * @file
+ * Install file to support distributor_map.module
+ */
+
+/**
+ * Implements hook_install().
+ */
+function distributor_map_install() {
+  variable_set('distributor_map_ctype', '');
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function distributor_map_uninstall() {
+  variable_del('distributor_map_ctype');
+  field_delete_field('field_dis_xy');
+  field_delete_field('field_dis_text');
+}
